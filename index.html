@@ -228,6 +228,30 @@
     .nicKeypadGrid button.nicDark{background:linear-gradient(180deg,#20252c,#0b0d10);color:#ffc83f;border-color:rgba(255,179,35,.26)}
     .nicKeypadGrid button.nicDone{background:linear-gradient(180deg,#15803d,#075e2a);color:#fff;border-color:rgba(34,197,94,.45)}
 
+
+
+    /* v28 mobile receipt + custom popup/keypad fixes */
+    @media(max-width:760px){
+      .receiptModal{align-items:flex-start!important;overflow:auto!important;padding:10px!important}
+      .receiptModalCard{width:min(96vw,78mm)!important;max-height:none!important;overflow:visible!important;margin:10px auto 130px!important;padding:10px!important}
+      .receiptBox{width:58mm!important;max-width:58mm!important;min-height:auto!important;padding:2mm!important;font-size:10px!important;line-height:1.12!important;border-radius:6px!important;margin:0 auto!important;box-sizing:border-box!important}
+      .receiptPre{font-size:10px!important;line-height:1.12!important}
+      .receiptLogo img{max-width:32mm!important;max-height:18mm!important}
+    }
+    .appAlertBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:1000001;display:none;align-items:center;justify-content:center;padding:18px}
+    .appAlertBackdrop.show{display:flex}
+    .appAlertBox{width:min(92vw,420px);border-radius:20px;border:1px solid rgba(255,179,35,.42);background:linear-gradient(180deg,#171b20,#07090c);box-shadow:0 24px 70px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.12);padding:18px;text-align:center;color:#f4f7fb}
+    .appAlertIcon{width:54px;height:54px;border-radius:16px;margin:0 auto 12px;display:grid;place-items:center;background:linear-gradient(180deg,#ffbd38,#a86600);color:#111;font-size:26px;box-shadow:0 10px 24px rgba(245,179,35,.22)}
+    .appAlertText{font-size:16px;line-height:1.65;margin:4px 0 16px;white-space:pre-wrap}
+    .appAlertOk{min-width:130px;height:44px;border-radius:12px!important;background:linear-gradient(180deg,#ffbd38,#a86600)!important;color:#101010!important;border:1px solid rgba(255,205,85,.6)!important;font-weight:700!important}
+    .smartKeypadBackdrop{position:fixed;left:0;right:0;bottom:0;z-index:1000000;background:rgba(0,0,0,.68);display:none;align-items:flex-end;justify-content:center;padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
+    .smartKeypadBackdrop.show{display:flex}
+    .smartKeypad{width:min(430px,96vw);border-radius:22px 22px 16px 16px;border:1px solid rgba(255,179,35,.38);background:linear-gradient(180deg,#171b21,#05070a);box-shadow:0 -14px 50px rgba(0,0,0,.68),inset 0 1px 0 rgba(255,255,255,.10);padding:14px}
+    .smartKeypadHead{display:flex;align-items:center;justify-content:space-between;color:#ffc83f;font-weight:700;margin-bottom:10px}.smartKeypadHead button{min-width:42px!important;width:42px;height:36px;padding:0!important;border-radius:10px!important}
+    .smartKeypadGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.smartKeypadGrid button{height:52px;border-radius:14px!important;min-width:0!important;padding:0!important;font-size:20px;font-weight:700;background:linear-gradient(180deg,rgba(255,179,35,.96),rgba(169,101,0,.96));color:#111;border:1px solid rgba(255,211,87,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 18px rgba(0,0,0,.28)}
+    .smartKeypadGrid button.kpDark{background:linear-gradient(180deg,#20252c,#0b0d10);color:#ffc83f;border-color:rgba(255,179,35,.26)}
+    .smartKeypadGrid button.kpDone{background:linear-gradient(180deg,#15803d,#075e2a);color:#fff;border-color:rgba(34,197,94,.45)}
+
 </style>
 
 </head>
@@ -856,9 +880,51 @@ function openAboutModal(){
   modal.classList.add('show')
 }
 function closeAboutModal(){const m=$('aboutModal');if(m)m.classList.remove('show')}
+
+
+/* v28 smart popup and keypad */
+let __activeSmartInput=null,__smartKeypadMode='num';
+function showPrettyAlert(msg, okText='OK'){
+  return new Promise(resolve=>{
+    let m=$('appAlertModal');
+    if(!m){m=document.createElement('div');m.id='appAlertModal';m.className='appAlertBackdrop noPrint';m.innerHTML=`<div class="appAlertBox"><div class="appAlertIcon">!</div><div class="appAlertText" id="appAlertText"></div><button class="appAlertOk" id="appAlertOk">OK</button></div>`;document.body.appendChild(m)}
+    $('appAlertText').textContent=String(msg||'');$('appAlertOk').textContent=okText;
+    const done=()=>{m.classList.remove('show');resolve(true)};
+    $('appAlertOk').onclick=done;m.classList.add('show');setTimeout(()=>$('appAlertOk').focus(),50);
+  })
+}
+window.alert=function(msg){showPrettyAlert(msg,'OK')};
+function ensureInputVisible(el){setTimeout(()=>{try{el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'})}catch(e){}},80)}
+function createSmartKeypad(){let m=$('smartKeypadModal');if(m)return m;m=document.createElement('div');m.id='smartKeypadModal';m.className='smartKeypadBackdrop noPrint';m.innerHTML=`<div class="smartKeypad"><div class="smartKeypadHead"><span id="smartKeypadTitle">Number Keyboard</span><button class="btnRed" onclick="closeSmartKeyboard()">✕</button></div><div class="smartKeypadGrid" id="smartKeypadGrid"></div></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeSmartKeyboard()});return m}
+function smartKeysFor(mode){const vx=mode==='nic';let keys=['1','2','3','4','5','6','7','8','9',vx?'V':'⌫','0',vx?'X':'Done'];return keys}
+function openSmartKeyboard(el,mode='num',title='Number Keyboard'){
+  __activeSmartInput=el;__smartKeypadMode=mode;ensureInputVisible(el);
+  const m=createSmartKeypad(),grid=$('smartKeypadGrid');$('smartKeypadTitle').textContent=title;
+  grid.innerHTML=smartKeysFor(mode).map(k=>{
+    if(k==='⌫')return `<button class="kpDark" onclick="smartBackspace()">⌫</button>`;
+    if(k==='Done')return `<button class="kpDone" onclick="closeSmartKeyboard()">Done</button>`;
+    return `<button onclick="smartKey('${k}')">${k}</button>`
+  }).join('')+`<button class="kpDark" onclick="smartClear()">Clear</button><button class="kpDark" onclick="smartKey('/')">/</button><button class="kpDone" onclick="closeSmartKeyboard()">Done</button>`;
+  if(mode!=='customer'){
+    const slash=[...grid.querySelectorAll('button')].find(b=>b.textContent==='/'); if(slash) slash.style.display='none';
+  }
+  m.classList.add('show')
+}
+function smartKey(ch){if(!__activeSmartInput)return;let v=__activeSmartInput.value||''; if(ch==='/' && __smartKeypadMode!=='customer')return; v+=ch; if(__smartKeypadMode==='nic')v=v.toUpperCase().replace(/[^0-9VX]/g,'').slice(0,12); else if(__smartKeypadMode==='customer')v=v.replace(/[^0-9/]/g,'').slice(0,12); else v=v.replace(/[^0-9]/g,'').slice(0,10); __activeSmartInput.value=v; __activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function smartBackspace(){if(!__activeSmartInput)return;__activeSmartInput.value=String(__activeSmartInput.value||'').slice(0,-1);__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function smartClear(){if(!__activeSmartInput)return;__activeSmartInput.value='';__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function closeSmartKeyboard(){const m=$('smartKeypadModal');if(m)m.classList.remove('show');__activeSmartInput=null}
+function openNicKeyboard(el){openSmartKeyboard(el,'nic','ID / NIC Keyboard')}
+function bindSmartKeyboards(){
+  const nicIds=['regNic','nic'];nicIds.forEach(id=>{const el=$(id);if(el&&!el.dataset.smartNic){el.dataset.smartNic='1';el.setAttribute('inputmode','none');el.addEventListener('focus',()=>openSmartKeyboard(el,'nic','ID / NIC Keyboard'));el.addEventListener('click',()=>openSmartKeyboard(el,'nic','ID / NIC Keyboard'))}});
+  const numIds=['companyPhone','regMobile','mobile','payingInstallments','regInstallmentDays'];numIds.forEach(id=>{const el=$(id);if(el&&!el.dataset.smartNum){el.dataset.smartNum='1';el.setAttribute('inputmode','none');el.addEventListener('focus',()=>openSmartKeyboard(el,'num','Number Keyboard'));el.addEventListener('click',()=>openSmartKeyboard(el,'num','Number Keyboard'))}});
+  const cust=$('customerNoLast');if(cust&&!cust.dataset.smartCustomer){cust.dataset.smartCustomer='1';cust.setAttribute('inputmode','none');cust.addEventListener('focus',()=>openSmartKeyboard(cust,'customer','Customer Number Keyboard'));cust.addEventListener('click',()=>openSmartKeyboard(cust,'customer','Customer Number Keyboard'))}
+}
+function validatePayment(d){if(!d){showPrettyAlert('Customer number type කරලා customer load කරන්න.','OK');return false}if(!d.customerName){showPrettyAlert('Customer details load වෙලා නැහැ.','OK');return false}if(hasIssuedForCustomerDate(d.customerId,d.date)){showPrettyAlert('මෙම Customer Number එකට අද දිනයේ receipt එකක් දැනටම issue කරලා තියෙනවා. Copy print අවශ්‍ය නම් Admin → Copy Print භාවිතා කරන්න.','OK');return false}if(d.payingInstallments<=0){showPrettyAlert('ගෙවන වාරික ගණන නිවැරදිව දාන්න.','OK');return false}if(d.payingInstallments>d.remainingInstallmentsBefore){showPrettyAlert('ඉතිරි වාරික ගණනට වඩා වැඩි වාරික ගණනක් ගෙවන්න බැහැ.','OK');return false}return true}
+
 function initDates(){const nt=updateDateStatus();if(!$("loanDate").value)$("loanDate").value=nt.date;if(!$("regDate").value)$("regDate").value=nt.date;if(!$("regStartDate").value)$("regStartDate").value=nt.date;if(!$("reportFrom").value)$("reportFrom").value=nt.date;if(!$("reportTo").value)$("reportTo").value=nt.date;if(!$("receiptNo").value)$("receiptNo").value=uid("LP");if(!$("regCustomerId").value)generateCustomerId();$("paymentTime").value=nt.time}
 setInterval(()=>{const nt=updateDateStatus();if(!$("selectedCustomerId").value)$("paymentTime").value=nt.time},1000)
-function init(){localStorage.removeItem(KEYS.admin);initDates();updateCustomerNoPrefix();loadCompany();updateBTStatus();updateAdminUI();updateBackupStatus();restoreBackupFolderHandle();renderCustomers();renderReports();renderHolidays();clearLoadedCustomerOnly();calculateRegisterLoan();enableAutoTitleCase();updatePendingButton();setTimeout(updatePendingButton,250)}
+function init(){localStorage.removeItem(KEYS.admin);initDates();updateCustomerNoPrefix();loadCompany();updateBTStatus();updateAdminUI();updateBackupStatus();restoreBackupFolderHandle();renderCustomers();renderReports();renderHolidays();clearLoadedCustomerOnly();calculateRegisterLoan();enableAutoTitleCase();bindSmartKeyboards();updatePendingButton();setTimeout(updatePendingButton,250)}
 window.addEventListener("storage",updatePendingButton);
 init();
 </script>
