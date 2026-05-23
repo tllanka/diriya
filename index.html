@@ -254,25 +254,15 @@
 
 
     /* v29 keypad fixes */
+    /* v31 stable keypad value display */
+    .smartKeypadValueBox{margin:0 0 12px;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,179,35,.35);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(0,0,0,.28));box-shadow:inset 0 1px 0 rgba(255,255,255,.12);text-align:center;color:#fff;font-size:24px;font-weight:700;letter-spacing:1px;min-height:48px;display:flex;align-items:center;justify-content:center;word-break:break-all}
+    .smartKeypadValueBox.empty{color:#8b96a5;font-size:15px;font-weight:500;letter-spacing:0}
+    @media(max-width:760px){.smartKeypad{max-height:62vh;overflow:auto}.smartKeypadValueBox{font-size:22px;min-height:44px}.smartKeypadGrid button{height:50px}}
+
     .smartKeypadBackdrop{align-items:flex-end!important;pointer-events:auto}
     .smartKeypad{margin-bottom:env(safe-area-inset-bottom,0);}
     input[data-smart-num="1"],input[data-smart-nic="1"],input[data-smart-customer="1"]{caret-color:transparent;}
     .receiptPre{white-space:pre-wrap}
-
-
-    /* v30 keypad value display + polished print confirm */
-    .smartKeypadValueBox{margin:0 0 12px 0;border-radius:16px;border:1px solid rgba(255,179,35,.42);background:linear-gradient(180deg,rgba(255,179,35,.14),rgba(0,0,0,.20));box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 22px rgba(0,0,0,.28);padding:10px 12px;text-align:center}
-    .smartKeypadValueLabel{font-size:11px;color:#aeb7c3;margin-bottom:4px;letter-spacing:.3px}
-    .smartKeypadValue{min-height:28px;font-size:22px;font-weight:800;color:#fff;letter-spacing:1px;word-break:break-all;text-shadow:0 0 12px rgba(255,179,35,.22)}
-    .smartKeypadValue.empty{color:#6b7280;font-weight:600;letter-spacing:0;font-size:17px}
-    .printConfirmBox{max-width:460px!important;border-radius:24px!important;padding:20px!important;border-color:rgba(255,179,35,.48)!important;background:linear-gradient(180deg,#1b2027,#07090c)!important}
-    .printConfirmIcon{width:58px;height:58px;border-radius:18px;margin:0 auto 12px;display:grid;place-items:center;background:linear-gradient(180deg,#ffbd38,#a86600);color:#111;font-size:28px;box-shadow:0 12px 28px rgba(245,179,35,.24),inset 0 1px 0 rgba(255,255,255,.25)}
-    .printConfirmTitle{text-align:center;color:#ffc83f;font-size:22px;font-weight:800;margin-bottom:10px}
-    .confirmText{text-align:center;font-size:16px;line-height:1.75;color:#eef2f7;margin:8px 0 18px!important}
-    .confirmText .lineHint{display:block;color:#aeb7c3;font-size:14px;margin-top:6px}
-    .confirmActions{display:grid!important;grid-template-columns:1fr 1fr;gap:12px!important}
-    .confirmActions button{height:48px!important;border-radius:14px!important;font-weight:800!important;min-width:0!important;width:100%!important}
-    @media(max-width:760px){.smartKeypad{width:96vw}.smartKeypadGrid button{height:50px}.smartKeypadValue{font-size:20px}.printConfirmBox{width:92vw!important}.confirmActions{grid-template-columns:1fr!important}}
 
 </style>
 
@@ -723,15 +713,14 @@ async function completePendingPayment(d){
   closeReceiptModal();clearPaymentForm();setTimeout(updatePendingButton,50);
 }
 
-function showConfirmPopup(message,onOk,onCancel,okText='Print Success',cancelText='Pending Save'){
+function showConfirmPopup(message,onOk,onCancel,okText='OK',cancelText='Cancel'){
   let modal=$('confirmPopupModal');
   if(!modal){
     modal=document.createElement('div');modal.id='confirmPopupModal';modal.className='modalBackdrop noPrint';
-    modal.innerHTML=`<div class="modalBox printConfirmBox"><div class="printConfirmIcon">🖨️</div><div class="printConfirmTitle">Print Confirmation</div><div id="confirmPopupText" class="confirmText"></div><div class="confirmActions"><button id="confirmCancelBtn" class="btnRed"></button><button id="confirmOkBtn" class="btnGreen"></button></div></div>`;
+    modal.innerHTML=`<div class="modalBox"><div class="sectionTitle"><h2>Print Confirmation</h2></div><div id="confirmPopupText" class="confirmText"></div><div class="confirmActions"><button id="confirmOkBtn" class="btnGreen"></button><button id="confirmCancelBtn" class="btnRed"></button></div></div>`;
     document.body.appendChild(modal);
   }
-  $('confirmPopupText').innerHTML=String(message||'').split('
-').map((line,i)=>i?`<span class="lineHint">${esc(line)}</span>`:esc(line)).join('');
+  $('confirmPopupText').innerHTML=esc(message).replace(/\n/g,'<br>');
   $('confirmOkBtn').textContent=okText;
   $('confirmCancelBtn').textContent=cancelText;
   $('confirmOkBtn').onclick=()=>{modal.classList.remove('show'); if(typeof onOk==='function')onOk();};
@@ -739,16 +728,7 @@ function showConfirmPopup(message,onOk,onCancel,okText='Print Success',cancelTex
   modal.classList.add('show');
 }
 
-function printAndSavePayment(){
-  const d=currentReceiptData||paymentData();if(!validatePayment(d))return;
-  currentReceiptData=d;currentReceipt=buildReceipt(d);setReceiptPreview(currentReceipt,false);
-  window.print();
-  setTimeout(()=>{
-    showConfirmPopup('Print එක සාර්ථකව print වුණාද?
-Print වුණා නම් Print Success ඔබන්න.
-Print නොවුණා නම් Pending Save ඔබන්න.',()=>completePrintedPayment(d),()=>completePendingPayment(d),'Print Success','Pending Save')
-  },500)
-}
+function printAndSavePayment(){const d=currentReceiptData||paymentData();if(!validatePayment(d))return;currentReceiptData=d;currentReceipt=buildReceipt(d);setReceiptPreview(currentReceipt,false);window.print();setTimeout(()=>{if(confirm("Print එක සාර්ථකව print වුණාද?\nOK = data save කරන්න\nCancel = Pending Print ලෙස save කරන්න")){completePrintedPayment(d)}else{completePendingPayment(d)}},500)}
 function savePaymentRecord(){alert("Save Payment button removed. Generate Receipt → Print & Save භාවිතා කරන්න.")}
 function clearPaymentForm(){$("receiptNo").value=uid("LP");$("loanDate").value=dateObj().date;$("paymentTime").value=dateObj().time;updateCustomerNoPrefix();$("customerNoLast").value="";$("selectedCustomerId").value="";clearLoadedCustomerOnly();$("collector").value=getJSON(KEYS.company,defaultCompany()).collector||"";$("paymentStatus").value="Cash";$("receiptText").textContent="Customer number type කළාම receipt preview generate කරන්න.";currentReceipt=""}
 function filteredPayments(){const from=$("reportFrom").value,to=$("reportTo").value,q=$("reportSearch").value.toLowerCase().trim(),status=$("reportStatus").value;return getJSON(KEYS.payments,[]).filter(r=>{if(from&&r.date<from)return false;if(to&&r.date>to)return false;if(status&&r.status!==status)return false;return`${r.receiptNo} ${r.customerId} ${r.customerName} ${r.nic} ${r.mobile} ${r.collector} ${r.status}`.toLowerCase().includes(q)})}
@@ -923,31 +903,10 @@ function showPrettyAlert(msg, okText='OK'){
   })
 }
 window.alert=function(msg){showPrettyAlert(msg,'OK')};
-function ensureInputVisible(el){
-  if(!el)return;
-  setTimeout(()=>{try{el.style.scrollMarginBottom='430px';el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});window.scrollBy({top:-110,behavior:'smooth'})}catch(e){}},60);
-  setTimeout(()=>{try{el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});window.scrollBy({top:-140,behavior:'smooth'})}catch(e){}},360)
-}
-function keypadDisplayLabel(){
-  if(__smartKeypadMode==='nic')return 'ID / NIC Number';
-  if(__smartKeypadMode==='customer')return 'Customer Number';
-  return 'Type Number';
-}
-function updateSmartKeypadValue(){
-  const v=$('smartKeypadValue'),l=$('smartKeypadValueLabel');
-  if(!v)return;
-  const text=__activeSmartInput?String(__activeSmartInput.value||''):'';
-  if(l)l.textContent=keypadDisplayLabel();
-  v.textContent=text || 'Type කරන number මෙතැන පෙන්වයි';
-  v.classList.toggle('empty',!text);
-}
-function createSmartKeypad(){
-  let m=$('smartKeypadModal');if(m)return m;
-  m=document.createElement('div');m.id='smartKeypadModal';m.className='smartKeypadBackdrop noPrint';
-  m.innerHTML=`<div class="smartKeypad"><div class="smartKeypadHead"><span id="smartKeypadTitle">Number Keyboard</span><button class="btnRed" onclick="closeSmartKeyboard()">✕</button></div><div class="smartKeypadValueBox"><div class="smartKeypadValueLabel" id="smartKeypadValueLabel">Type Number</div><div class="smartKeypadValue empty" id="smartKeypadValue">Type කරන number මෙතැන පෙන්වයි</div></div><div class="smartKeypadGrid" id="smartKeypadGrid"></div></div>`;
-  document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeSmartKeyboard()});return m
-}
+function ensureInputVisible(el){setTimeout(()=>{try{el.style.scrollMarginBottom='360px';el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});window.scrollBy({top:-70,behavior:'smooth'})}catch(e){}},80);setTimeout(()=>{try{el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});window.scrollBy({top:-90,behavior:'smooth'})}catch(e){}},380)}
+function createSmartKeypad(){let m=$('smartKeypadModal');if(m)return m;m=document.createElement('div');m.id='smartKeypadModal';m.className='smartKeypadBackdrop noPrint';m.innerHTML=`<div class="smartKeypad"><div class="smartKeypadHead"><span id="smartKeypadTitle">Number Keyboard</span><button class="btnRed" onclick="closeSmartKeyboard()">✕</button></div><div class="smartKeypadValueBox empty" id="smartKeypadValueBox">Type number</div><div class="smartKeypadGrid" id="smartKeypadGrid"></div></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeSmartKeyboard()});return m}
 function smartKeysFor(mode){if(mode==='nic')return ['1','2','3','4','5','6','7','8','9','V','0','X'];return ['1','2','3','4','5','6','7','8','9','⌫','0'];}
+function updateSmartKeypadDisplay(){const box=$('smartKeypadValueBox');if(!box)return;const v=(__activeSmartInput&&__activeSmartInput.value)?__activeSmartInput.value:'';box.textContent=v||'Type number';box.classList.toggle('empty',!v)}
 function openSmartKeyboard(el,mode='num',title='Number Keyboard'){
   __activeSmartInput=el;__smartKeypadMode=mode;ensureInputVisible(el);
   const m=createSmartKeypad(),grid=$('smartKeypadGrid');$('smartKeypadTitle').textContent=title;
@@ -955,21 +914,12 @@ function openSmartKeyboard(el,mode='num',title='Number Keyboard'){
     if(k==='⌫')return `<button class="kpDark" onclick="smartBackspace()">⌫</button>`;
     return `<button onclick="smartKey('${k}')">${k}</button>`
   }).join('')+`<button class="kpDark" onclick="smartClear()">Clear</button>${mode==='customer'?`<button class="kpDark" onclick="smartKey('/')">/</button>`:''}<button class="kpDone" onclick="closeSmartKeyboard()">Done</button>`;
-  updateSmartKeypadValue();m.classList.add('show');ensureInputVisible(el);setTimeout(()=>updateSmartKeypadValue(),50)
+  m.classList.add('show');ensureInputVisible(el)
 }
-function smartKey(ch){
-  if(!__activeSmartInput)return;
-  let v=__activeSmartInput.value||'';
-  if(ch==='/' && __smartKeypadMode!=='customer')return;
-  v+=ch;
-  if(__smartKeypadMode==='nic')v=v.toUpperCase().replace(/[^0-9VX]/g,'').slice(0,12);
-  else if(__smartKeypadMode==='customer')v=v.replace(/[^0-9/]/g,'').slice(0,12);
-  else v=v.replace(/[^0-9]/g,'').slice(0,10);
-  __activeSmartInput.value=v;__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}));updateSmartKeypadValue();ensureInputVisible(__activeSmartInput)
-}
-function smartBackspace(){if(!__activeSmartInput)return;__activeSmartInput.value=String(__activeSmartInput.value||'').slice(0,-1);__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}));updateSmartKeypadValue();ensureInputVisible(__activeSmartInput)}
-function smartClear(){if(!__activeSmartInput)return;__activeSmartInput.value='';__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}));updateSmartKeypadValue();ensureInputVisible(__activeSmartInput)}
-function closeSmartKeyboard(){const m=$('smartKeypadModal');if(m)m.classList.remove('show');__activeSmartInput=null;updateSmartKeypadValue()}
+function smartKey(ch){if(!__activeSmartInput)return;let v=__activeSmartInput.value||''; if(ch==='/' && __smartKeypadMode!=='customer')return; v+=ch; if(__smartKeypadMode==='nic')v=v.toUpperCase().replace(/[^0-9VX]/g,'').slice(0,12); else if(__smartKeypadMode==='customer')v=v.replace(/[^0-9/]/g,'').slice(0,12); else v=v.replace(/[^0-9]/g,'').slice(0,10); __activeSmartInput.value=v;updateSmartKeypadDisplay(); __activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function smartBackspace(){if(!__activeSmartInput)return;__activeSmartInput.value=String(__activeSmartInput.value||'').slice(0,-1);__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function smartClear(){if(!__activeSmartInput)return;__activeSmartInput.value='';updateSmartKeypadDisplay();__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function closeSmartKeyboard(){const m=$('smartKeypadModal');if(m)m.classList.remove('show');__activeSmartInput=null}
 function openNicKeyboard(el){openSmartKeyboard(el,'nic','ID / NIC Keyboard')}
 function prepareSmartInput(el,kind){
   if(!el)return;
@@ -983,7 +933,6 @@ function bindSmartKeyboards(){
   const numIds=['companyPhone','regMobile','mobile','payingInstallments','regInstallmentDays','adminPassword'];numIds.forEach(id=>{const el=$(id);if(el&&!el.dataset.smartNum){el.dataset.smartNum='1';prepareSmartInput(el,id==='adminPassword'?'password':'text');el.addEventListener('focus',()=>openSmartKeyboard(el,'num','Number Keyboard'));el.addEventListener('click',()=>openSmartKeyboard(el,'num','Number Keyboard'))}});
   const cust=$('customerNoLast');if(cust&&!cust.dataset.smartCustomer){cust.dataset.smartCustomer='1';prepareSmartInput(cust,'text');cust.addEventListener('focus',()=>openSmartKeyboard(cust,'customer','Customer Number Keyboard'));cust.addEventListener('click',()=>openSmartKeyboard(cust,'customer','Customer Number Keyboard'))}
 }
-
 function validatePayment(d){if(!d){showPrettyAlert('Customer number type කරලා customer load කරන්න.','OK');return false}if(!d.customerName){showPrettyAlert('Customer details load වෙලා නැහැ.','OK');return false}if(hasIssuedForCustomerDate(d.customerId,d.date)){showPrettyAlert('මෙම Customer Number එකට අද දිනයේ receipt එකක් දැනටම issue කරලා තියෙනවා. Copy print අවශ්‍ය නම් Admin → Copy Print භාවිතා කරන්න.','OK');return false}if(d.payingInstallments<=0){showPrettyAlert('ගෙවන වාරික ගණන නිවැරදිව දාන්න.','OK');return false}if(d.payingInstallments>d.remainingInstallmentsBefore){showPrettyAlert('ඉතිරි වාරික ගණනට වඩා වැඩි වාරික ගණනක් ගෙවන්න බැහැ.','OK');return false}return true}
 
 function initDates(){const nt=updateDateStatus();if(!$("loanDate").value)$("loanDate").value=nt.date;if(!$("regDate").value)$("regDate").value=nt.date;if(!$("regStartDate").value)$("regStartDate").value=nt.date;if(!$("reportFrom").value)$("reportFrom").value=nt.date;if(!$("reportTo").value)$("reportTo").value=nt.date;if(!$("receiptNo").value)$("receiptNo").value=uid("LP");if(!$("regCustomerId").value)generateCustomerId();$("paymentTime").value=nt.time}
