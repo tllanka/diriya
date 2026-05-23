@@ -219,6 +219,15 @@
 .aboutTopCard{padding:8px 10px!important;max-width:250px;margin:0 auto;border-radius:18px!important}
 .aboutTopLogo{width:min(135px,42vw)!important;max-height:135px!important;object-fit:contain!important}
 @media(max-width:760px){.aboutTopCard{max-width:210px}.aboutTopLogo{width:min(118px,38vw)!important;max-height:118px!important}.footer{text-align:center!important}}
+
+    .nicKeypadBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:999999;display:none;align-items:flex-end;justify-content:center;padding:14px}
+    .nicKeypadBackdrop.show{display:flex}
+    .nicKeypad{width:min(420px,96vw);border-radius:22px;border:1px solid rgba(255,179,35,.35);background:linear-gradient(180deg,#15191f,#06080b);box-shadow:0 24px 60px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.12);padding:16px}
+    .nicKeypadHead{display:flex;align-items:center;justify-content:space-between;color:#ffc83f;font-weight:700;margin-bottom:12px}.nicKeypadHead button{min-width:42px!important;width:42px;height:36px;padding:0!important;border-radius:10px!important}
+    .nicKeypadGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.nicKeypadGrid button{height:54px;border-radius:14px!important;min-width:0!important;padding:0!important;font-size:20px;font-weight:700;background:linear-gradient(180deg,rgba(255,179,35,.95),rgba(169,101,0,.95));color:#111;border:1px solid rgba(255,211,87,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 18px rgba(0,0,0,.28)}
+    .nicKeypadGrid button.nicDark{background:linear-gradient(180deg,#20252c,#0b0d10);color:#ffc83f;border-color:rgba(255,179,35,.26)}
+    .nicKeypadGrid button.nicDone{background:linear-gradient(180deg,#15803d,#075e2a);color:#fff;border-color:rgba(34,197,94,.45)}
+
 </style>
 
 </head>
@@ -323,7 +332,7 @@
         <div class="formGrid">
           <div><label>Company Name</label><input id="companyName" placeholder="Company name" oninput="titleCaseInput(this)"></div>
           <div><label>Phone Number</label><input id="companyPhone" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="Phone number" oninput="digitLimit(this,10)"></div>
-          <div><label>Email</label><input id="companyEmail" placeholder="Email address"></div>
+          <div><label>Email</label><input id="companyEmail" type="email" inputmode="email" placeholder="Email address" oninput="lowerCaseInput(this)"></div>
           <div><label>Branch</label><input id="companyBranch" placeholder="Branch" oninput="titleCaseInput(this)"></div>
           <div><label>Collector Name</label><input id="companyCollector" placeholder="Collector name for receipt"></div>
           <div class="full"><label>Address</label><textarea id="companyAddress" placeholder="Company address"></textarea></div>
@@ -340,7 +349,7 @@
           <div><label>Customer Number</label><input id="regCustomerId" placeholder="Example: 26/05/100"></div>
           <div class="hiddenField"><label>Register Date</label><input id="regDate" type="date" onchange="updateCustomerNumberByDate()"></div>
           <div><label>Customer Name</label><input id="regName" placeholder="Customer name" oninput="titleCaseInput(this)"></div>
-          <div><label>ID Number / NIC</label><input id="regNic" placeholder="ID number"></div>
+          <div><label>ID Number / NIC</label><input id="regNic" placeholder="ID number" inputmode="none" autocomplete="off" onfocus="openNicKeyboard(this)" onclick="openNicKeyboard(this)" oninput="nicLimit(this)"></div>
           <div><label>Phone Number</label><input id="regMobile" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="07XXXXXXXX" oninput="digitLimit(this,10)"></div>
           <div><label>Select Amount</label><select id="regLoanAmount" onchange="calculateRegisterLoan()">
             <option value="12500">12,500</option><option value="25000">25,000</option><option value="37500">37,500</option><option value="50000">50,000</option>
@@ -444,9 +453,19 @@ function $(id){return document.getElementById(id)}
 function money(v){return"Rs. "+Number(v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}
 function pad(n){return String(n).padStart(2,"0")}
 function digitLimit(el,max){el.value=String(el.value||"").replace(/\D/g,"").slice(0,max)}
-function titleCaseText(v){return String(v||"").toLowerCase().replace(/(^|[\s,./\-])([a-zA-Zඅ-෴])/g,(m,p,c)=>p+c.toUpperCase())}
+function titleCaseText(v){return String(v||"").replace(/(^|[\s,./\-])([a-zA-Zඅ-෴])/g,(m,p,c)=>p+c.toUpperCase())}
 function titleCaseInput(el){const s=el.selectionStart,e=el.selectionEnd;el.value=titleCaseText(el.value);try{el.setSelectionRange(s,e)}catch(_){}}
-function enableAutoTitleCase(){document.querySelectorAll('input,textarea').forEach(el=>{const id=(el.id||'').toLowerCase(),type=(el.type||'').toLowerCase();if(el.readOnly||['date','number','tel','password','email'].includes(type))return;if(id.includes('customerid')||id.includes('customernolast')||id.includes('selected')||id.includes('receipt')||id.includes('nic')||id.includes('search'))return;if(!el.dataset.titleCase){el.dataset.titleCase='1';el.addEventListener('input',()=>titleCaseInput(el));}})}
+function lowerCaseInput(el){const s=el.selectionStart,e=el.selectionEnd;el.value=String(el.value||"").toLowerCase();try{el.setSelectionRange(s,e)}catch(_){}}
+function nicLimit(el){el.value=String(el.value||"").toUpperCase().replace(/[^0-9VX]/g,"").slice(0,12)}
+function enableAutoTitleCase(){document.querySelectorAll('input,textarea').forEach(el=>{const id=(el.id||'').toLowerCase(),type=(el.type||'').toLowerCase();if(el.readOnly||['date','number','tel','password','email'].includes(type))return;if(id.includes('email')||id.includes('customerid')||id.includes('customernolast')||id.includes('selected')||id.includes('receipt')||id.includes('nic')||id.includes('search'))return;if(!el.dataset.titleCase){el.dataset.titleCase='1';el.addEventListener('input',()=>titleCaseInput(el));}})}
+
+let activeNicInput=null;
+function openNicKeyboard(el){activeNicInput=el;let m=$('nicKeypadModal');if(!m){m=document.createElement('div');m.id='nicKeypadModal';m.className='nicKeypadBackdrop noPrint';m.innerHTML=`<div class="nicKeypad"><div class="nicKeypadHead"><span>ID / NIC Keyboard</span><button class="btnRed" onclick="closeNicKeyboard()">✕</button></div><div class="nicKeypadGrid"><button onclick="nicKey('1')">1</button><button onclick="nicKey('2')">2</button><button onclick="nicKey('3')">3</button><button onclick="nicKey('4')">4</button><button onclick="nicKey('5')">5</button><button onclick="nicKey('6')">6</button><button onclick="nicKey('7')">7</button><button onclick="nicKey('8')">8</button><button onclick="nicKey('9')">9</button><button onclick="nicKey('V')">V</button><button onclick="nicKey('0')">0</button><button onclick="nicKey('X')">X</button><button class="nicDark" onclick="nicBackspace()">⌫</button><button class="nicDark" onclick="nicClear()">Clear</button><button class="nicDone" onclick="closeNicKeyboard()">Done</button></div></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeNicKeyboard()})}m.classList.add('show')}
+function nicKey(ch){if(!activeNicInput)return;activeNicInput.value=(activeNicInput.value+ch).toUpperCase().replace(/[^0-9VX]/g,'').slice(0,12);activeNicInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function nicBackspace(){if(!activeNicInput)return;activeNicInput.value=activeNicInput.value.slice(0,-1);activeNicInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function nicClear(){if(activeNicInput){activeNicInput.value='';activeNicInput.dispatchEvent(new Event('input',{bubbles:true}))}}
+function closeNicKeyboard(){const m=$('nicKeypadModal');if(m)m.classList.remove('show');activeNicInput=null}
+
 function dateObj(){const d=new Date();return{date:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,time:`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`}}
 function uid(p){const d=new Date();return`${p}${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${Math.floor(100+Math.random()*900)}`}
 function esc(t){return String(t??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
@@ -501,7 +520,7 @@ function updateBTStatus(){if($("btStatus"))$("btStatus").innerHTML=statusHTML("b
 function updateAdminUI(){const u=isAdmin();$("adminStatus").innerHTML=statusHTML("lock","Admin",u?"Unlocked":"Locked",u?"green":"red");$("adminLoginBox").style.display=u?"none":"block";$("adminDashboard").style.display=u?"block":"none"}
 function defaultCompany(){return{name:"සිටි Finance",address:"Ratnapura",email:"",phone:"",branch:"Main Branch",collector:"",logo:""}}
 function loadCompany(){const c=getJSON(KEYS.company,defaultCompany());$("companyName").value=c.name||"";$("companyAddress").value=c.address||"";$("companyEmail").value=c.email||"";$("companyPhone").value=c.phone||"";$("companyBranch").value=c.branch||"";if($("companyCollector"))$("companyCollector").value=c.collector||"";if($("collector"))$("collector").value=c.collector||"";if($("paymentStatus"))$("paymentStatus").value="Cash";if($("topCompany"))$("topCompany").textContent="";if($("topSub"))$("topSub").textContent="";}
-function saveCompany(){const old=getJSON(KEYS.company,defaultCompany()),c={name:$("companyName").value.trim(),address:$("companyAddress").value.trim(),email:$("companyEmail").value.trim(),phone:$("companyPhone").value.trim(),branch:$("companyBranch").value.trim(),collector:($("companyCollector")?$("companyCollector").value.trim():""),logo:old.logo||""};if(!c.name)return alert("Company name දාන්න.");setJSON(KEYS.company,c);loadCompany();alert("Company details saved.")}
+function saveCompany(){const old=getJSON(KEYS.company,defaultCompany()),c={name:$("companyName").value.trim(),address:$("companyAddress").value.trim(),email:$("companyEmail").value.trim().toLowerCase(),phone:$("companyPhone").value.trim(),branch:$("companyBranch").value.trim(),collector:($("companyCollector")?$("companyCollector").value.trim():""),logo:old.logo||""};if(!c.name)return alert("Company name දාන්න.");setJSON(KEYS.company,c);loadCompany();alert("Company details saved.")}
 function loadLogoFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const c=getJSON(KEYS.company,defaultCompany());c.logo=r.result;setJSON(KEYS.company,c);loadCompany();alert("Logo saved.")};r.readAsDataURL(f)}
 function removeLogo(){const c=getJSON(KEYS.company,defaultCompany());c.logo="";setJSON(KEYS.company,c);loadCompany();alert("Logo removed.")}
 function getYYMM(dateText){const d=new Date(dateText+"T00:00:00");return`${String(d.getFullYear()).slice(-2)}/${pad(d.getMonth()+1)}`}
@@ -715,9 +734,16 @@ function browserPrint(){generateReceipt()}
 function testPrint(){currentReceipt=`\n        TEST PRINT\n${line()}\nFinance Warika System\nBluetooth Printer Test\n${dateObj().date} ${dateObj().time}\n${line()}\n`;$("receiptText").textContent=currentReceipt;printBluetooth()}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function backupObject(){return{version:"7.0",exportedAt:new Date().toISOString(),company:getJSON(KEYS.company,defaultCompany()),customers:getJSON(KEYS.customers,[]),payments:getJSON(KEYS.payments,[]),holidays:getJSON(KEYS.holidays,[]),autoBackup:localStorage.getItem(KEYS.autoBackup)||"off"}}
+
+function idbOpen(){return new Promise((resolve,reject)=>{const req=indexedDB.open('FinanceWarikaDB',1);req.onupgradeneeded=()=>req.result.createObjectStore('handles');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function saveBackupDirHandle(handle){try{const db=await idbOpen();await new Promise((resolve,reject)=>{const tx=db.transaction('handles','readwrite');tx.objectStore('handles').put(handle,'backupDir');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});localStorage.setItem(KEYS.backupFolder,'selected')}catch(e){console.warn('Folder handle save failed',e)}}
+async function getSavedBackupDirHandle(){try{const db=await idbOpen();return await new Promise((resolve,reject)=>{const tx=db.transaction('handles','readonly');const req=tx.objectStore('handles').get('backupDir');req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)})}catch(e){console.warn('Folder handle load failed',e);return null}}
+async function verifyBackupDirPermission(handle){if(!handle)return false;try{const q=await handle.queryPermission({mode:'readwrite'});if(q==='granted')return true;const r=await handle.requestPermission({mode:'readwrite'});return r==='granted'}catch(e){return false}}
+async function restoreBackupFolderHandle(){const handle=await getSavedBackupDirHandle();if(handle){backupDirHandle=handle;const ok=await verifyBackupDirPermission(handle);if(!ok)backupDirHandle=null}updateBackupFolderStatus()}
+
 async function selectBackupFolder(){
   if(!window.showDirectoryPicker){showAppMessage("මෙම browser එක folder select support කරන්නේ නැහැ. Chrome/Edge desktop වලින් try කරන්න.","warn");return}
-  try{backupDirHandle=await window.showDirectoryPicker({mode:"readwrite"});localStorage.setItem(KEYS.backupFolder,"selected");if($("backupFolderStatus"))$("backupFolderStatus").textContent="Backup folder selected for this session.";showAppMessage("Backup folder selected.")}catch(e){showAppMessage("Backup folder select cancel කළා.","warn")}
+  try{backupDirHandle=await window.showDirectoryPicker({mode:"readwrite"});await saveBackupDirHandle(backupDirHandle);updateBackupFolderStatus();showAppMessage("Backup folder selected. ඉදිරියට මෙම folder එකම මතකයේ තබාගන්නවා.")}catch(e){showAppMessage("Backup folder select cancel කළා.","warn")}
 }
 async function saveDataFile(filename,content,folderName=""){
   try{
@@ -725,7 +751,7 @@ async function saveDataFile(filename,content,folderName=""){
   }catch(e){console.error(e);showAppMessage("Backup folder write error. Download fallback use කරනවා.","warn")}
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([content],{type:"application/octet-stream"}));a.download=(folderName?folderName.replace(/\s+/g,"_")+"_":"")+filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);return false
 }
-function updateBackupFolderStatus(){if($("backupFolderStatus"))$("backupFolderStatus").textContent=backupDirHandle?"Backup folder selected for this session.":"Backup folder not selected."}
+function updateBackupFolderStatus(){if($("backupFolderStatus"))$("backupFolderStatus").textContent=backupDirHandle?"Backup folder selected. Finance_Backup.json overwrite වෙනවා.":(localStorage.getItem(KEYS.backupFolder)==="selected"?"Saved backup folder permission අවශ්‍යයි. Select Backup Folder නැවත press කරන්න.":"Backup folder not selected.")}
 async function writeSingleBackupFile(showMsg=true){
   const content=JSON.stringify(backupObject(),null,2);
   localStorage.setItem(KEYS.snapshot,content);
@@ -832,7 +858,7 @@ function openAboutModal(){
 function closeAboutModal(){const m=$('aboutModal');if(m)m.classList.remove('show')}
 function initDates(){const nt=updateDateStatus();if(!$("loanDate").value)$("loanDate").value=nt.date;if(!$("regDate").value)$("regDate").value=nt.date;if(!$("regStartDate").value)$("regStartDate").value=nt.date;if(!$("reportFrom").value)$("reportFrom").value=nt.date;if(!$("reportTo").value)$("reportTo").value=nt.date;if(!$("receiptNo").value)$("receiptNo").value=uid("LP");if(!$("regCustomerId").value)generateCustomerId();$("paymentTime").value=nt.time}
 setInterval(()=>{const nt=updateDateStatus();if(!$("selectedCustomerId").value)$("paymentTime").value=nt.time},1000)
-function init(){localStorage.removeItem(KEYS.admin);initDates();updateCustomerNoPrefix();loadCompany();updateBTStatus();updateAdminUI();updateBackupStatus();updateBackupFolderStatus();renderCustomers();renderReports();renderHolidays();clearLoadedCustomerOnly();calculateRegisterLoan();enableAutoTitleCase();updatePendingButton();setTimeout(updatePendingButton,250)}
+function init(){localStorage.removeItem(KEYS.admin);initDates();updateCustomerNoPrefix();loadCompany();updateBTStatus();updateAdminUI();updateBackupStatus();restoreBackupFolderHandle();renderCustomers();renderReports();renderHolidays();clearLoadedCustomerOnly();calculateRegisterLoan();enableAutoTitleCase();updatePendingButton();setTimeout(updatePendingButton,250)}
 window.addEventListener("storage",updatePendingButton);
 init();
 </script>
