@@ -252,6 +252,13 @@
     .smartKeypadGrid button.kpDark{background:linear-gradient(180deg,#20252c,#0b0d10);color:#ffc83f;border-color:rgba(255,179,35,.26)}
     .smartKeypadGrid button.kpDone{background:linear-gradient(180deg,#15803d,#075e2a);color:#fff;border-color:rgba(34,197,94,.45)}
 
+
+    /* v29 keypad fixes */
+    .smartKeypadBackdrop{align-items:flex-end!important;pointer-events:auto}
+    .smartKeypad{margin-bottom:env(safe-area-inset-bottom,0);}
+    input[data-smart-num="1"],input[data-smart-nic="1"],input[data-smart-customer="1"]{caret-color:transparent;}
+    .receiptPre{white-space:pre-wrap}
+
 </style>
 
 </head>
@@ -674,8 +681,6 @@ Customer Sign: ______________
 Officer Sign : ______________
 ${center("Thank You")}
 ${line()}
-${c.phone?"Tel: "+c.phone:""}
-${c.email?"Email: "+c.email:""}
 ${center("LK Weighing Solution")}
 `}
 function receiptLogoHTML(){const c=getJSON(KEYS.company,defaultCompany());return c.logo?`<div class="receiptLogo"><img src="${c.logo}" alt="Print Logo"></div>`:''}
@@ -690,8 +695,7 @@ function completePrintedPayment(d){
   d.printStatus="printed";d.printedAt=new Date().toISOString();
   savePaymentAfterPrint(d);
   writeSingleBackupFile(false);
-  showAppMessage("Print success. Data saved & backup success.");
-  renderReports();updatePendingButton();closeReceiptModal();clearPaymentForm();setTimeout(updatePendingButton,50);
+  renderReports();updatePendingButton();closeReceiptModal();clearPaymentForm();showPrettyAlert("Print එක සාර්ථකව print වුණා. Data save වෙලා backup success.","OK");setTimeout(updatePendingButton,50);
 }
 async function completePendingPayment(d){
   d.printStatus="pending";d.pendingAt=new Date().toISOString();
@@ -894,31 +898,34 @@ function showPrettyAlert(msg, okText='OK'){
   })
 }
 window.alert=function(msg){showPrettyAlert(msg,'OK')};
-function ensureInputVisible(el){setTimeout(()=>{try{el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'})}catch(e){}},80)}
+function ensureInputVisible(el){setTimeout(()=>{try{el.style.scrollMarginBottom='360px';el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});window.scrollBy({top:-70,behavior:'smooth'})}catch(e){}},80);setTimeout(()=>{try{el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});window.scrollBy({top:-90,behavior:'smooth'})}catch(e){}},380)}
 function createSmartKeypad(){let m=$('smartKeypadModal');if(m)return m;m=document.createElement('div');m.id='smartKeypadModal';m.className='smartKeypadBackdrop noPrint';m.innerHTML=`<div class="smartKeypad"><div class="smartKeypadHead"><span id="smartKeypadTitle">Number Keyboard</span><button class="btnRed" onclick="closeSmartKeyboard()">✕</button></div><div class="smartKeypadGrid" id="smartKeypadGrid"></div></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeSmartKeyboard()});return m}
-function smartKeysFor(mode){const vx=mode==='nic';let keys=['1','2','3','4','5','6','7','8','9',vx?'V':'⌫','0',vx?'X':'Done'];return keys}
+function smartKeysFor(mode){if(mode==='nic')return ['1','2','3','4','5','6','7','8','9','V','0','X'];return ['1','2','3','4','5','6','7','8','9','⌫','0'];}
 function openSmartKeyboard(el,mode='num',title='Number Keyboard'){
   __activeSmartInput=el;__smartKeypadMode=mode;ensureInputVisible(el);
   const m=createSmartKeypad(),grid=$('smartKeypadGrid');$('smartKeypadTitle').textContent=title;
   grid.innerHTML=smartKeysFor(mode).map(k=>{
     if(k==='⌫')return `<button class="kpDark" onclick="smartBackspace()">⌫</button>`;
-    if(k==='Done')return `<button class="kpDone" onclick="closeSmartKeyboard()">Done</button>`;
     return `<button onclick="smartKey('${k}')">${k}</button>`
-  }).join('')+`<button class="kpDark" onclick="smartClear()">Clear</button><button class="kpDark" onclick="smartKey('/')">/</button><button class="kpDone" onclick="closeSmartKeyboard()">Done</button>`;
-  if(mode!=='customer'){
-    const slash=[...grid.querySelectorAll('button')].find(b=>b.textContent==='/'); if(slash) slash.style.display='none';
-  }
-  m.classList.add('show')
+  }).join('')+`<button class="kpDark" onclick="smartClear()">Clear</button>${mode==='customer'?`<button class="kpDark" onclick="smartKey('/')">/</button>`:''}<button class="kpDone" onclick="closeSmartKeyboard()">Done</button>`;
+  m.classList.add('show');ensureInputVisible(el)
 }
 function smartKey(ch){if(!__activeSmartInput)return;let v=__activeSmartInput.value||''; if(ch==='/' && __smartKeypadMode!=='customer')return; v+=ch; if(__smartKeypadMode==='nic')v=v.toUpperCase().replace(/[^0-9VX]/g,'').slice(0,12); else if(__smartKeypadMode==='customer')v=v.replace(/[^0-9/]/g,'').slice(0,12); else v=v.replace(/[^0-9]/g,'').slice(0,10); __activeSmartInput.value=v; __activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
 function smartBackspace(){if(!__activeSmartInput)return;__activeSmartInput.value=String(__activeSmartInput.value||'').slice(0,-1);__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
 function smartClear(){if(!__activeSmartInput)return;__activeSmartInput.value='';__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
 function closeSmartKeyboard(){const m=$('smartKeypadModal');if(m)m.classList.remove('show');__activeSmartInput=null}
 function openNicKeyboard(el){openSmartKeyboard(el,'nic','ID / NIC Keyboard')}
+function prepareSmartInput(el,kind){
+  if(!el)return;
+  try{el.type=(kind==='password')?'password':'text'}catch(e){}
+  el.setAttribute('inputmode','none');el.setAttribute('autocomplete','off');el.readOnly=true;
+  el.addEventListener('touchstart',()=>{el.readOnly=true},{passive:true});
+  el.addEventListener('focus',()=>{el.readOnly=true;ensureInputVisible(el)});
+}
 function bindSmartKeyboards(){
-  const nicIds=['regNic','nic'];nicIds.forEach(id=>{const el=$(id);if(el&&!el.dataset.smartNic){el.dataset.smartNic='1';el.setAttribute('inputmode','none');el.addEventListener('focus',()=>openSmartKeyboard(el,'nic','ID / NIC Keyboard'));el.addEventListener('click',()=>openSmartKeyboard(el,'nic','ID / NIC Keyboard'))}});
-  const numIds=['companyPhone','regMobile','mobile','payingInstallments','regInstallmentDays'];numIds.forEach(id=>{const el=$(id);if(el&&!el.dataset.smartNum){el.dataset.smartNum='1';el.setAttribute('inputmode','none');el.addEventListener('focus',()=>openSmartKeyboard(el,'num','Number Keyboard'));el.addEventListener('click',()=>openSmartKeyboard(el,'num','Number Keyboard'))}});
-  const cust=$('customerNoLast');if(cust&&!cust.dataset.smartCustomer){cust.dataset.smartCustomer='1';cust.setAttribute('inputmode','none');cust.addEventListener('focus',()=>openSmartKeyboard(cust,'customer','Customer Number Keyboard'));cust.addEventListener('click',()=>openSmartKeyboard(cust,'customer','Customer Number Keyboard'))}
+  const nicIds=['regNic','nic'];nicIds.forEach(id=>{const el=$(id);if(el&&!el.dataset.smartNic){el.dataset.smartNic='1';prepareSmartInput(el,'text');el.addEventListener('focus',()=>openSmartKeyboard(el,'nic','ID / NIC Keyboard'));el.addEventListener('click',()=>openSmartKeyboard(el,'nic','ID / NIC Keyboard'))}});
+  const numIds=['companyPhone','regMobile','mobile','payingInstallments','regInstallmentDays','adminPassword'];numIds.forEach(id=>{const el=$(id);if(el&&!el.dataset.smartNum){el.dataset.smartNum='1';prepareSmartInput(el,id==='adminPassword'?'password':'text');el.addEventListener('focus',()=>openSmartKeyboard(el,'num','Number Keyboard'));el.addEventListener('click',()=>openSmartKeyboard(el,'num','Number Keyboard'))}});
+  const cust=$('customerNoLast');if(cust&&!cust.dataset.smartCustomer){cust.dataset.smartCustomer='1';prepareSmartInput(cust,'text');cust.addEventListener('focus',()=>openSmartKeyboard(cust,'customer','Customer Number Keyboard'));cust.addEventListener('click',()=>openSmartKeyboard(cust,'customer','Customer Number Keyboard'))}
 }
 function validatePayment(d){if(!d){showPrettyAlert('Customer number type කරලා customer load කරන්න.','OK');return false}if(!d.customerName){showPrettyAlert('Customer details load වෙලා නැහැ.','OK');return false}if(hasIssuedForCustomerDate(d.customerId,d.date)){showPrettyAlert('මෙම Customer Number එකට අද දිනයේ receipt එකක් දැනටම issue කරලා තියෙනවා. Copy print අවශ්‍ය නම් Admin → Copy Print භාවිතා කරන්න.','OK');return false}if(d.payingInstallments<=0){showPrettyAlert('ගෙවන වාරික ගණන නිවැරදිව දාන්න.','OK');return false}if(d.payingInstallments>d.remainingInstallmentsBefore){showPrettyAlert('ඉතිරි වාරික ගණනට වඩා වැඩි වාරික ගණනක් ගෙවන්න බැහැ.','OK');return false}return true}
 
