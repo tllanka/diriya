@@ -264,6 +264,19 @@
     input[data-smart-num="1"],input[data-smart-nic="1"],input[data-smart-customer="1"]{caret-color:transparent;}
     .receiptPre{white-space:pre-wrap}
 
+    /* v32 custom print confirmation + keypad Done polish */
+    .appConfirmBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.74);z-index:1000002;display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(7px)}
+    .appConfirmBackdrop.show{display:flex}
+    .appConfirmBox{width:min(92vw,460px);border-radius:24px;border:1px solid rgba(255,179,35,.48);background:linear-gradient(180deg,#1a1f25,#080a0d);box-shadow:0 26px 78px rgba(0,0,0,.78),0 0 0 1px rgba(255,179,35,.12),inset 0 1px 0 rgba(255,255,255,.12);padding:20px 18px 18px;text-align:center;color:#f4f7fb}
+    .appConfirmIcon{width:60px;height:60px;border-radius:18px;margin:0 auto 12px;display:grid;place-items:center;background:linear-gradient(180deg,#ffbd38,#a86600);color:#111;font-size:28px;box-shadow:0 12px 28px rgba(245,179,35,.24)}
+    .appConfirmTitle{font-size:21px;font-weight:700;color:#ffc83f;margin-bottom:8px;letter-spacing:.2px}
+    .appConfirmText{font-size:16px;line-height:1.65;color:#dce6f1;margin:0 auto 18px;white-space:pre-line;text-align:left;max-width:390px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:15px;padding:13px 14px}
+    .appConfirmActions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .appConfirmActions button{height:48px;border-radius:14px!important;font-weight:700!important;min-width:0!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 22px rgba(0,0,0,.28)!important}
+    .appConfirmOk{background:linear-gradient(180deg,#22c55e,#087a32)!important;border:1px solid rgba(34,197,94,.56)!important;color:#fff!important}
+    .appConfirmCancel{background:linear-gradient(180deg,#00e7e5,#009a98)!important;border:1px solid rgba(0,204,203,.75)!important;color:#001818!important}
+    @media(max-width:480px){.appConfirmBox{border-radius:22px;padding:18px 14px}.appConfirmActions{grid-template-columns:1fr}.appConfirmText{font-size:15px}.appConfirmTitle{font-size:20px}}
+
 </style>
 
 </head>
@@ -728,7 +741,7 @@ function showConfirmPopup(message,onOk,onCancel,okText='OK',cancelText='Cancel')
   modal.classList.add('show');
 }
 
-function printAndSavePayment(){const d=currentReceiptData||paymentData();if(!validatePayment(d))return;currentReceiptData=d;currentReceipt=buildReceipt(d);setReceiptPreview(currentReceipt,false);window.print();setTimeout(()=>{if(confirm("Print එක සාර්ථකව print වුණාද?\nOK = data save කරන්න\nCancel = Pending Print ලෙස save කරන්න")){completePrintedPayment(d)}else{completePendingPayment(d)}},500)}
+function printAndSavePayment(){const d=currentReceiptData||paymentData();if(!validatePayment(d))return;currentReceiptData=d;currentReceipt=buildReceipt(d);setReceiptPreview(currentReceipt,false);window.print();setTimeout(()=>{showPrettyConfirm("Print එක සාර්ථකව print වුණාද?\n\nPrint Success = data save කරන්න\nPending Save = pending print ලෙස save කරන්න",{title:"Print Result",okText:"Print Success",cancelText:"Pending Save",icon:"🖨️"}).then(ok=>{if(ok){completePrintedPayment(d)}else{completePendingPayment(d)}})},500)}
 function savePaymentRecord(){alert("Save Payment button removed. Generate Receipt → Print & Save භාවිතා කරන්න.")}
 function clearPaymentForm(){$("receiptNo").value=uid("LP");$("loanDate").value=dateObj().date;$("paymentTime").value=dateObj().time;updateCustomerNoPrefix();$("customerNoLast").value="";$("selectedCustomerId").value="";clearLoadedCustomerOnly();$("collector").value=getJSON(KEYS.company,defaultCompany()).collector||"";$("paymentStatus").value="Cash";$("receiptText").textContent="Customer number type කළාම receipt preview generate කරන්න.";currentReceipt=""}
 function filteredPayments(){const from=$("reportFrom").value,to=$("reportTo").value,q=$("reportSearch").value.toLowerCase().trim(),status=$("reportStatus").value;return getJSON(KEYS.payments,[]).filter(r=>{if(from&&r.date<from)return false;if(to&&r.date>to)return false;if(status&&r.status!==status)return false;return`${r.receiptNo} ${r.customerId} ${r.customerName} ${r.nic} ${r.mobile} ${r.collector} ${r.status}`.toLowerCase().includes(q)})}
@@ -902,6 +915,24 @@ function showPrettyAlert(msg, okText='OK'){
     $('appAlertOk').onclick=done;m.classList.add('show');setTimeout(()=>$('appAlertOk').focus(),50);
   })
 }
+function showPrettyConfirm(message,{title='Print Confirmation',okText='Print Success',cancelText='Pending Save',icon='🖨️'}={}){
+  return new Promise(resolve=>{
+    let m=$('appConfirmModal');
+    if(!m){
+      m=document.createElement('div');m.id='appConfirmModal';m.className='appConfirmBackdrop noPrint';
+      m.innerHTML=`<div class="appConfirmBox"><div class="appConfirmIcon" id="appConfirmIcon">🖨️</div><div class="appConfirmTitle" id="appConfirmTitle">Print Confirmation</div><div class="appConfirmText" id="appConfirmText"></div><div class="appConfirmActions"><button class="appConfirmCancel" id="appConfirmCancelBtn">Pending Save</button><button class="appConfirmOk" id="appConfirmOkBtn">Print Success</button></div></div>`;
+      document.body.appendChild(m);
+    }
+    $('appConfirmIcon').textContent=icon;
+    $('appConfirmTitle').textContent=title;
+    $('appConfirmText').textContent=String(message||'');
+    $('appConfirmOkBtn').textContent=okText;
+    $('appConfirmCancelBtn').textContent=cancelText;
+    $('appConfirmOkBtn').onclick=()=>{m.classList.remove('show');resolve(true)};
+    $('appConfirmCancelBtn').onclick=()=>{m.classList.remove('show');resolve(false)};
+    m.classList.add('show');setTimeout(()=>$('appConfirmOkBtn').focus(),50);
+  })
+}
 window.alert=function(msg){showPrettyAlert(msg,'OK')};
 function ensureInputVisible(el){setTimeout(()=>{try{el.style.scrollMarginBottom='360px';el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});window.scrollBy({top:-70,behavior:'smooth'})}catch(e){}},80);setTimeout(()=>{try{el.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});window.scrollBy({top:-90,behavior:'smooth'})}catch(e){}},380)}
 function createSmartKeypad(){let m=$('smartKeypadModal');if(m)return m;m=document.createElement('div');m.id='smartKeypadModal';m.className='smartKeypadBackdrop noPrint';m.innerHTML=`<div class="smartKeypad"><div class="smartKeypadHead"><span id="smartKeypadTitle">Number Keyboard</span><button class="btnRed" onclick="closeSmartKeyboard()">✕</button></div><div class="smartKeypadValueBox empty" id="smartKeypadValueBox">Type number</div><div class="smartKeypadGrid" id="smartKeypadGrid"></div></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)closeSmartKeyboard()});return m}
@@ -917,9 +948,9 @@ function openSmartKeyboard(el,mode='num',title='Number Keyboard'){
   m.classList.add('show');ensureInputVisible(el)
 }
 function smartKey(ch){if(!__activeSmartInput)return;let v=__activeSmartInput.value||''; if(ch==='/' && __smartKeypadMode!=='customer')return; v+=ch; if(__smartKeypadMode==='nic')v=v.toUpperCase().replace(/[^0-9VX]/g,'').slice(0,12); else if(__smartKeypadMode==='customer')v=v.replace(/[^0-9/]/g,'').slice(0,12); else v=v.replace(/[^0-9]/g,'').slice(0,10); __activeSmartInput.value=v;updateSmartKeypadDisplay(); __activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
-function smartBackspace(){if(!__activeSmartInput)return;__activeSmartInput.value=String(__activeSmartInput.value||'').slice(0,-1);__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
+function smartBackspace(){if(!__activeSmartInput)return;__activeSmartInput.value=String(__activeSmartInput.value||'').slice(0,-1);updateSmartKeypadDisplay();__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
 function smartClear(){if(!__activeSmartInput)return;__activeSmartInput.value='';updateSmartKeypadDisplay();__activeSmartInput.dispatchEvent(new Event('input',{bubbles:true}))}
-function closeSmartKeyboard(){const m=$('smartKeypadModal');if(m)m.classList.remove('show');__activeSmartInput=null}
+function closeSmartKeyboard(){const m=$('smartKeypadModal');if(m)m.classList.remove('show');const box=$('smartKeypadValueBox');if(box){box.textContent='Type number';box.classList.add('empty')}try{if(__activeSmartInput)__activeSmartInput.blur()}catch(e){}__activeSmartInput=null}
 function openNicKeyboard(el){openSmartKeyboard(el,'nic','ID / NIC Keyboard')}
 function prepareSmartInput(el,kind){
   if(!el)return;
